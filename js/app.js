@@ -54,8 +54,8 @@ window.bhoomiState = {
   simulationRunning: false,
   audioMuted: false,
   activeView: 'live-orientation',
-  droneLat: 28.4701886,
-  droneLng: 77.4941820,
+  droneLat: 28.73266,
+  droneLng: 77.11903,
   packetsReceived: 0,
   availablePorts: []
 };
@@ -155,11 +155,17 @@ window.navigateTo = function(viewId) {
   if (viewId === 'flight-controller-health' && window.initFCHealth) {
     window.initFCHealth();
   }
-  if (viewId === 'land-mapping-workspace' && window.initCadastreMap) {
-    window.initCadastreMap();
+  if (viewId === 'land-mapping-workspace') {
+    if (window.initCadastreMap) window.initCadastreMap();
+    setTimeout(() => {
+      if (window.cadastreMap) window.cadastreMap.invalidateSize();
+    }, 150);
   }
-  if (viewId === 'overview' && window.initOverviewMiniMap) {
-    window.initOverviewMiniMap();
+  if (viewId === 'overview') {
+    if (window.initOverviewMiniMap) window.initOverviewMiniMap();
+    setTimeout(() => {
+      if (window.overviewMiniMap) window.overviewMiniMap.invalidateSize();
+    }, 150);
   }
 
   window.showNotification(`Active Console: ${viewId.replace(/-/g, ' ').toUpperCase()}`);
@@ -272,10 +278,21 @@ function applyMavlinkData(data) {
   s.airSpeed = data.airspeed;
   s.climbRate = data.climb_rate;
   s.throttle = data.throttle;
-  s.satellites = data.satellites_visible;
-  s.gpsFix = data.gps_fix_type >= 3 ? (data.gps_fix_type === 6 ? 'RTK FIXED' : '3D FIX') : 'SEARCHING';
-  s.hdop = data.hdop;
-  s.vdop = data.vdop;
+  s.satellites = data.satellites_visible !== undefined ? data.satellites_visible : 0;
+  
+  const FIX_MAP = {
+    0: 'NO GPS',
+    1: 'NO FIX',
+    2: '2D FIX',
+    3: '3D FIX',
+    4: 'DGPS FIX',
+    5: 'RTK FLOAT',
+    6: 'RTK FIXED'
+  };
+  s.gpsFixType = data.gps_fix_type !== undefined ? data.gps_fix_type : 0;
+  s.gpsFix = FIX_MAP[data.gps_fix_type] || (s.satellites >= 4 ? '3D FIX' : 'SEARCHING');
+  s.hdop = data.hdop !== undefined ? data.hdop : 0.0;
+  s.vdop = data.vdop !== undefined ? data.vdop : 0.0;
   s.cpuLoad = data.cpu_load;
   s.vibrationX = data.vibration_x;
   s.vibrationY = data.vibration_y;
@@ -318,9 +335,11 @@ function applyMavlinkData(data) {
     if (window.overviewDroneMarker) {
       window.overviewDroneMarker.setLatLng([data.lat, data.lon]);
     }
-    if (window.updateMapDroneLocation) {
-      window.updateMapDroneLocation(data.lat, data.lon, s);
-    }
+  }
+
+  // Always invoke map location & HUD update so satellites and HDOP are displayed live
+  if (window.updateMapDroneLocation) {
+    window.updateMapDroneLocation(s.droneLat, s.droneLng, s);
   }
 
   s.packetsReceived = data.packets_received;
@@ -331,6 +350,13 @@ function applyMavlinkData(data) {
   if (window.onTelemetryTick) {
     window.onTelemetryTick(s);
   }
+}
+
+function formatHDOP(hdop) {
+  if (hdop === undefined || hdop === null || hdop <= 0 || hdop >= 90) {
+    return '--';
+  }
+  return Number(hdop).toFixed(2);
 }
 
 function updateHardwareBadge(isConnected, customMsg) {
@@ -363,6 +389,52 @@ function updateHardwareBadge(isConnected, customMsg) {
 
 function updateCommonTelemetryDisplays() {
   const s = window.bhoomiState;
+  const hdopStr = formatHDOP(s.hdop);
+
+  // 1. Top Header Satellites & HDOP Pill (Visible across ALL pages)
+  const hdrSats = document.getElementById('hdr-sats-count');
+  if (hdrSats) hdrSats.textContent = `${s.satellites} SATS`;
+
+  const hdrHdop = document.getElementById('hdr-hdop-val');
+  if (hdrHdop) hdrHdop.textContent = `HDOP: ${hdopStr}`;
+
+  const hdrFix = document.getElementById('hdr-gps-fix-badge');
+  if (hdrFix) {
+    hdrFix.textContent = s.gpsFix;
+    if (s.gpsFixType >= 3) {
+      hdrFix.className = "font-label-caps text-[9px] px-1.5 py-0.5 rounded bg-secondary/20 text-secondary font-bold ml-0.5";
+    } else {
+      hdrFix.className = "font-label-caps text-[9px] px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-bold ml-0.5";
+    }
+  }
+
+  // 2. View 01: Overview FPV Cockpit HUD & Mini-map
+  const hudSats = document.getElementById('hud-gps-sats');
+  if (hudSats) hudSats.textContent = `${s.satellites} SATS (${s.gpsFix})`;
+  const hudHdop = document.getElementById('hud-gps-hdop');
+  if (hudHdop) hudHdop.textContent = `HDOP: ${hdopStr}`;
+  const ovMiniSats = document.getElementById('ov-mini-sats');
+  if (ovMiniSats) ovMiniSats.textContent = `${s.satellites} SATS (${s.gpsFix}) | HDOP: ${hdopStr}`;
+
+  // 3. View 02: Telemetry & Sensors Header
+  const satEl = document.getElementById('telem-rtk-sats');
+  if (satEl) satEl.textContent = `${s.satellites} SATS (${s.gpsFix})`;
+  const telemHdop = document.getElementById('telem-hdop-val');
+  if (telemHdop) telemHdop.textContent = `HDOP: ${hdopStr}`;
+
+  // 4. View 04: AHRS 3D Live Orientation Header
+  const ahrsSats = document.getElementById('ahrs-sats-val');
+  if (ahrsSats) ahrsSats.textContent = `${s.satellites}`;
+  const ahrsHdop = document.getElementById('ahrs-hdop-val');
+  if (ahrsHdop) ahrsHdop.textContent = hdopStr;
+
+  // 5. View 05: Land Mapping Workspace Header
+  const mapSats = document.getElementById('map-sats-count');
+  if (mapSats) mapSats.textContent = `${s.satellites} SATS`;
+  const mapHdop = document.getElementById('map-hdop-readout');
+  if (mapHdop) mapHdop.textContent = `HDOP: ${hdopStr}`;
+  const mapFix = document.getElementById('map-live-gps-fix');
+  if (mapFix) mapFix.textContent = s.gpsFix;
 
   const imuTempEl = document.getElementById('imu-temp');
   if (imuTempEl) imuTempEl.textContent = `${s.imuTemp}°C`;
@@ -370,11 +442,6 @@ function updateCommonTelemetryDisplays() {
   const busVoltEl = document.getElementById('bus-volt');
   if (busVoltEl) {
     busVoltEl.textContent = s.batteryVoltage > 0 ? `${s.batteryVoltage}V (${s.batteryPercent}%)` : `USB / 5.0V`;
-  }
-
-  const satEl = document.getElementById('telem-rtk-sats');
-  if (satEl) {
-    satEl.textContent = `${s.satellites} SATS (${s.gpsFix})`;
   }
 
   const modeBadge = document.getElementById('hdr-flight-mode-badge');

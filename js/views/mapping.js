@@ -12,57 +12,61 @@ let surveyFlightInterval = null;
 let isMissionSimulating = false;
 
 // Sample Indian Cadastral Village Land Parcels (SVAMITVA Scheme Survey Data)
+// Shaheed Sukhdev College of Business Studies (SSCBS, Rohini Sector 16) Cadastral Land Parcels
+const SSCBS_LAT = 28.73266;
+const SSCBS_LNG = 77.11903;
+
 const sampleKhasraParcels = [
   {
     khasraNo: "101/A",
-    farmer: "Rameshwar Singh",
-    areaHa: 4.8,
+    farmer: "SSCBS Academic & Administrative Block",
+    areaHa: 3.4,
     status: "SURVEYED",
     statusColor: "#4edea3",
     coords: [
-      [28.6130, 77.2070],
-      [28.6155, 77.2072],
-      [28.6152, 77.2105],
-      [28.6128, 77.2100]
+      [28.7336, 77.1180],
+      [28.7336, 77.1195],
+      [28.7323, 77.1195],
+      [28.7323, 77.1180]
     ]
   },
   {
     khasraNo: "102/B",
-    farmer: "Kamla Devi",
-    areaHa: 6.2,
+    farmer: "SSCBS Athletic Ground & Campus Lawn",
+    areaHa: 4.1,
     status: "IN PROGRESS",
     statusColor: "#4cd7f6",
     coords: [
-      [28.6155, 77.2072],
-      [28.6185, 77.2075],
-      [28.6180, 77.2112],
-      [28.6152, 77.2105]
+      [28.7336, 77.1195],
+      [28.7335, 77.1206],
+      [28.7319, 77.1205],
+      [28.7320, 77.1195]
     ]
   },
   {
     khasraNo: "103/C",
-    farmer: "Harish Chandra & Brothers",
-    areaHa: 8.5,
+    farmer: "SSCBS Hostel Complex & Residential Enclave",
+    areaHa: 2.6,
     status: "PENDING VERIFICATION",
     statusColor: "#7bd0ff",
     coords: [
-      [28.6128, 77.2100],
-      [28.6152, 77.2105],
-      [28.6148, 77.2140],
-      [28.6122, 77.2135]
+      [28.7323, 77.1180],
+      [28.7323, 77.1195],
+      [28.7315, 77.1195],
+      [28.7315, 77.1180]
     ]
   },
   {
-    khasraNo: "104/D (Gaon Sabha)",
-    farmer: "Community Land / Panchayat",
-    areaHa: 9.0,
-    status: "PROTECTED WATERBODY",
+    khasraNo: "104/D",
+    farmer: "Dr. K.N. Katju Marg Perimeter & Green Belt",
+    areaHa: 5.0,
+    status: "PROTECTED ROAD / BUFFER",
     statusColor: "#06b6d4",
     coords: [
-      [28.6152, 77.2105],
-      [28.6180, 77.2112],
-      [28.6175, 77.2145],
-      [28.6148, 77.2140]
+      [28.7338, 77.1176],
+      [28.7338, 77.1206],
+      [28.7336, 77.1206],
+      [28.7336, 77.1176]
     ]
   }
 ];
@@ -78,12 +82,12 @@ window.initCadastreMap = function() {
 
   const initialLat = (window.bhoomiState && window.bhoomiState.droneLat && window.bhoomiState.droneLat !== 0) 
     ? window.bhoomiState.droneLat 
-    : 28.4702108;
+    : SSCBS_LAT;
   const initialLng = (window.bhoomiState && window.bhoomiState.droneLng && window.bhoomiState.droneLng !== 0) 
     ? window.bhoomiState.droneLng 
-    : 77.4942966;
+    : SSCBS_LNG;
 
-  // Create Leaflet map centered on real Pixhawk GPS location
+  // Create Leaflet map centered on real Pixhawk GPS / SSCBS location
   cadastreMap = L.map('cadastre-leaflet-map', {
     zoomControl: false,
     attributionControl: true
@@ -91,7 +95,7 @@ window.initCadastreMap = function() {
   window.cadastreMap = cadastreMap;
 
   // 1. OpenStreetMap (Standard OSM) Basemap
-  const osmTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  const osmTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
   });
@@ -281,19 +285,42 @@ window.initCadastreMap = function() {
 
   // Real-time GPS Position handler called on every telemetry tick
   window.updateMapDroneLocation = function(lat, lon, state) {
-    if (!lat || !lon) return;
+    state = state || window.bhoomiState || {};
+    const hasValidCoords = Boolean(lat && lon && (lat !== 0 || lon !== 0));
+    const hdopStr = (state.hdop && state.hdop > 0 && state.hdop < 90) ? Number(state.hdop).toFixed(2) : '--';
 
-    // Update GPS Readout in Map Header
+    // 1. Always update Satellite count & HDOP chips in Land Mapping Workspace
+    const mapSatsEl = document.getElementById('map-sats-count');
+    if (mapSatsEl) {
+      mapSatsEl.textContent = `${state.satellites || 0} SATS`;
+    }
+    const mapHdopEl = document.getElementById('map-hdop-readout');
+    if (mapHdopEl) {
+      mapHdopEl.textContent = `HDOP: ${hdopStr}`;
+    }
+
+    // 2. Update GPS Readout and Fix Badges
     const gpsEl = document.getElementById('map-live-gps-readout');
     if (gpsEl) {
-      gpsEl.textContent = `GPS: ${lat.toFixed(6)}° N, ${lon.toFixed(6)}° E`;
+      if (hasValidCoords) {
+        gpsEl.textContent = `GPS: ${lat.toFixed(6)}° N, ${lon.toFixed(6)}° E`;
+      } else {
+        gpsEl.textContent = `SSCBS: 28.732660° N, 77.119030° E (${state.gpsFix || 'SEARCHING'})`;
+      }
     }
     const fixEl = document.getElementById('map-live-gps-fix');
     if (fixEl) {
-      fixEl.textContent = `${state.satellites || 0} SATS • ${state.gpsFix || 'LIVE GPS'}`;
+      fixEl.textContent = `${state.satellites || 0} SATS • ${state.gpsFix || 'SEARCHING'}`;
+      if (state.gpsFixType >= 3) {
+        fixEl.className = "font-label-caps text-[9px] text-secondary font-bold px-1.5 py-0.5 rounded bg-secondary/15";
+      } else {
+        fixEl.className = "font-label-caps text-[9px] text-primary font-bold px-1.5 py-0.5 rounded bg-primary/10";
+      }
     }
 
-    // Update Drone Marker on Cadastre OpenStreetMap
+    if (!hasValidCoords) return;
+
+    // 3. Update Drone Marker on Cadastre OpenStreetMap
     if (droneMapMarker && cadastreMap) {
       droneMapMarker.setLatLng([lat, lon]);
 
@@ -314,9 +341,10 @@ window.initCadastreMap = function() {
           <div class="text-xs text-on-surface-variant pt-1 font-mono">
             <b>Latitude:</b> ${lat.toFixed(7)}°<br/>
             <b>Longitude:</b> ${lon.toFixed(7)}°<br/>
+            <b>Satellites:</b> ${state.satellites || 0} | <b>HDOP:</b> ${hdopStr}<br/>
             <b>Alt MSL:</b> ${(state.altitudeMSL || 0).toFixed(1)} m | <b>AGL:</b> ${(state.altitudeAGL || 0).toFixed(1)} m<br/>
             <b>Heading:</b> ${Math.round(state.heading || state.yaw || 0)}° | <b>Speed:</b> ${(state.groundSpeed || 0).toFixed(1)} m/s<br/>
-            <b>Satellites:</b> ${state.satellites || 0} | <b>Mode:</b> ${state.flightMode}
+            <b>Flight Mode:</b> ${state.flightMode}
           </div>
         </div>
       `);
@@ -338,21 +366,24 @@ window.initCadastreMap = function() {
 
   // Re-center helpers
   window.centerMapOnDrone = function() {
-    if (cadastreMap && window.bhoomiState && window.bhoomiState.droneLat) {
-      cadastreMap.flyTo([window.bhoomiState.droneLat, window.bhoomiState.droneLng], 18);
-      window.showNotification(`Centered OpenStreetMap on Drone GPS: ${window.bhoomiState.droneLat.toFixed(6)}°, ${window.bhoomiState.droneLng.toFixed(6)}°`);
+    const lat = (window.bhoomiState && window.bhoomiState.droneLat) || SSCBS_LAT;
+    const lng = (window.bhoomiState && window.bhoomiState.droneLng) || SSCBS_LNG;
+    if (cadastreMap) {
+      cadastreMap.flyTo([lat, lng], 18);
+      window.showNotification(`Centered OpenStreetMap on Drone / SSCBS: ${lat.toFixed(6)}°, ${lng.toFixed(6)}°`);
     }
   };
 
   window.centerMapOnParcels = function() {
     if (cadastreMap && parcelPolygonLayer) {
       cadastreMap.fitBounds(parcelPolygonLayer.getBounds(), { padding: [35, 35] });
-      window.showNotification("Centered map on SVAMITVA Khasra site");
+      window.showNotification("Centered OpenStreetMap on SSCBS Campus Parcels");
     }
   };
 
   window.jumpToSurveyLocation = function(locKey) {
     const locations = {
+      'sscbs': { name: "Shaheed Sukhdev College of Business Studies (Rohini)", coords: [28.73266, 77.11903], zoom: 17 },
       'varanasi': { name: "Rampur Khas (Varanasi Site)", coords: [28.6155, 77.2105], zoom: 16 },
       'greater_noida': { name: "Knowledge Park (Greater Noida)", coords: [28.4701886, 77.4941820], zoom: 16 },
       'ayodhya': { name: "Ayodhya Cadastre Belt", coords: [26.7922, 82.1998], zoom: 15 },

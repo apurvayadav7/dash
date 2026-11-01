@@ -182,6 +182,14 @@
           <span class="material-symbols-outlined text-xs text-primary">flight_takeoff</span>
           <span id="hdr-flight-mode-badge" class="font-label-caps text-label-caps text-primary font-bold">STANDBY</span>
         </div>
+        <!-- Live GPS Satellites & HDOP Precision Badge (Visible on all views) -->
+        <div class="flex items-center gap-space-xs px-2.5 py-1 rounded-lg bg-surface-container-high border border-primary/25 shadow-sm" id="hdr-gps-pill" title="GPS Satellites Connected & HDOP Precision">
+          <span class="material-symbols-outlined text-xs text-primary">satellite_alt</span>
+          <span id="hdr-sats-count" class="font-data-sm text-data-sm text-primary font-bold">0 SATS</span>
+          <span class="text-outline-variant">|</span>
+          <span id="hdr-hdop-val" class="font-data-sm text-data-sm text-on-surface font-mono">HDOP: --</span>
+          <span id="hdr-gps-fix-badge" class="font-label-caps text-[9px] px-1.5 py-0.5 rounded bg-surface-container text-on-surface-variant font-bold ml-0.5">SEARCHING</span>
+        </div>
       </div>
 
       <!-- Simulation Switch & Officer Profile -->
@@ -775,19 +783,36 @@
           <!-- Live FPV Camera Feed with HUD overlays (7 cols) -->
           <div class="lg:col-span-7 flex flex-col gap-gutter-desktop">
             <div class="rounded-lg bg-surface-container-low p-space-md flex flex-col gap-2 border border-surface-container-high/30 relative">
-              <div class="flex items-center justify-between">
+              <div class="flex items-center justify-between flex-wrap gap-2">
                 <div class="flex items-center gap-2">
                   <span class="flex h-2 w-2 relative">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75"></span>
                     <span class="relative inline-flex rounded-full h-2 w-2 bg-error"></span>
                   </span>
-                  <span class="font-label-caps text-label-caps text-on-surface font-bold uppercase">LIVE PAYLOAD GIMBAL FEED (4K 60FPS)</span>
+                  <span class="font-label-caps text-label-caps text-on-surface font-bold uppercase">LIVE FPV / WEBCAM GIMBAL FEED</span>
+                  <span id="fpv-stream-badge" class="font-label-caps text-[9px] px-1.5 py-0.5 rounded bg-surface-container text-outline font-bold">STANDBY</span>
                 </div>
-                <div class="flex items-center gap-2">
-                  <button id="btn-fpv-feed" onclick="window.toggleRealFPVFeed()" class="px-2 py-1 rounded bg-surface-container hover:bg-surface-container-high text-primary font-label-caps text-[10px] font-bold flex items-center gap-1 cursor-pointer">
-                    <span class="material-symbols-outlined text-xs">videocam</span> CONNECT FPV 5.8GHz USB
+                <div class="flex items-center gap-1.5 flex-wrap">
+                  <!-- Camera Device Selector -->
+                  <div class="flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-container border border-white/[0.08]">
+                    <span class="material-symbols-outlined text-xs text-primary">videocam</span>
+                    <select id="fpv-camera-select" onchange="window.switchCameraDevice(this.value)" class="bg-surface-container font-label-caps text-[10px] text-primary font-bold outline-none cursor-pointer">
+                      <option value="default">📷 Primary WebCam</option>
+                    </select>
+                  </div>
+
+                  <!-- Start / Stop Webcam Button -->
+                  <button id="btn-fpv-feed" onclick="window.toggleRealFPVFeed()" class="px-2.5 py-1 rounded bg-secondary text-on-secondary font-label-caps text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow hover:brightness-110 active:scale-95 transition-all">
+                    <span class="material-symbols-outlined text-xs">videocam</span> START WEBCAM FEED
                   </button>
-                  <button onclick="window.capturePayloadPhoto()" class="px-2 py-1 rounded bg-primary text-on-primary font-label-caps text-[10px] font-bold hover:bg-primary-fixed-dim flex items-center gap-1 cursor-pointer">
+
+                  <!-- Mirror Toggle -->
+                  <button onclick="window.toggleCameraMirror()" title="Flip / Mirror Video Feed" class="p-1 rounded bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-primary flex items-center justify-center cursor-pointer border border-white/[0.06]">
+                    <span class="material-symbols-outlined text-xs">flip</span>
+                  </button>
+
+                  <!-- Shutter -->
+                  <button onclick="window.capturePayloadPhoto()" class="px-2.5 py-1 rounded bg-primary text-on-primary font-label-caps text-[10px] font-bold hover:bg-primary-fixed-dim flex items-center gap-1 cursor-pointer active:scale-95 shadow">
                     <span class="material-symbols-outlined text-xs">photo_camera</span> SHUTTER (<span id="ov-photo-counter">142</span>)
                   </button>
                 </div>
@@ -807,9 +832,12 @@
                 <div class="absolute inset-0 p-4 flex flex-col justify-between pointer-events-none text-white font-data-sm drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
                   <!-- Top telemetry strip -->
                   <div class="flex items-center justify-between">
-                    <span class="bg-black/60 px-2 py-0.5 rounded text-secondary font-mono">RTK FIX 3D: 26 SATS</span>
-                    <span class="bg-black/60 px-2 py-0.5 rounded text-primary font-mono">HDOP: 0.65</span>
-                    <span class="bg-black/60 px-2 py-0.5 rounded text-secondary font-mono">BATTERY: 88% (24.6V)</span>
+                    <span class="bg-black/60 px-2 py-0.5 rounded text-secondary font-mono flex items-center gap-1">
+                      <span class="material-symbols-outlined text-xs text-secondary">satellite_alt</span>
+                      <span id="hud-gps-sats">0 SATS (SEARCHING)</span>
+                    </span>
+                    <span class="bg-black/60 px-2 py-0.5 rounded text-primary font-mono" id="hud-gps-hdop">HDOP: --</span>
+                    <span class="bg-black/60 px-2 py-0.5 rounded text-secondary font-mono" id="hud-gps-battery">BATTERY: 100%</span>
                   </div>
 
                   <!-- Crosshairs / Target Reticle -->
@@ -890,8 +918,8 @@
               <!-- Mini map element -->
               <div id="overview-mini-map" class="w-full h-64 rounded bg-surface-container-lowest overflow-hidden border border-surface-container-high/40"></div>
               <div class="flex items-center justify-between font-label-caps text-[10px] text-outline pt-1">
-                <span>TARGET: KHASRA 102/B (RAMPUR)</span>
-                <span class="text-secondary font-bold">GPS LOCK: RTK FIXED</span>
+                <span>CAMPUS: SSCBS (ROHINI SECTOR 16)</span>
+                <span class="text-secondary font-bold font-mono" id="ov-mini-sats">0 SATS (SEARCHING)</span>
               </div>
             </div>
 
@@ -931,7 +959,8 @@
             <h1 class="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight mt-0.5">Drone Telemetry &amp; Sensor Bus</h1>
           </div>
           <div class="flex items-center gap-space-sm font-data-sm text-xs">
-            <span class="px-2 py-1 rounded bg-surface-container text-secondary font-semibold" id="telem-rtk-sats">26 SATS (RTK FIXED)</span>
+            <span class="px-2 py-1 rounded bg-surface-container text-secondary font-semibold font-mono" id="telem-rtk-sats">0 SATS (SEARCHING)</span>
+            <span class="px-2 py-1 rounded bg-surface-container text-primary font-semibold font-mono" id="telem-hdop-val">HDOP: --</span>
             <span class="px-2 py-1 rounded bg-surface-container text-primary font-semibold">BARO: 1013.2 hPa</span>
           </div>
         </div>
@@ -1148,16 +1177,22 @@
             <span class="font-label-caps text-label-caps text-outline uppercase tracking-wider">ATTITUDE &amp; HEADING REFERENCE SYSTEM (AHRS)</span>
             <h1 class="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight mt-0.5">Real-Time 3D Hexacopter Orientation</h1>
           </div>
-          <!-- 3-DOF Numbers -->
+          <!-- 3-DOF Numbers & GPS Pill -->
           <div class="flex items-center gap-space-sm font-data-sm text-sm">
-            <div class="px-space-md py-1 rounded bg-surface-container text-on-surface">
-              <span class="text-outline text-xs">PITCH: </span><b id="ahrs-pitch-val" class="text-primary">+2.1°</b>
+            <div class="px-space-md py-1 rounded bg-surface-container text-on-surface flex items-center gap-1.5" title="GPS Satellites Connected & HDOP Precision">
+              <span class="material-symbols-outlined text-xs text-primary">satellite_alt</span>
+              <span class="text-outline text-xs">SATS: </span><b id="ahrs-sats-val" class="text-primary font-mono">0</b>
+              <span class="text-outline-variant">|</span>
+              <span class="text-outline text-xs">HDOP: </span><b id="ahrs-hdop-val" class="text-on-surface font-mono">--</b>
             </div>
             <div class="px-space-md py-1 rounded bg-surface-container text-on-surface">
-              <span class="text-outline text-xs">ROLL: </span><b id="ahrs-roll-val" class="text-secondary">-1.4°</b>
+              <span class="text-outline text-xs">PITCH: </span><b id="ahrs-pitch-val" class="text-primary">+0.0°</b>
             </div>
             <div class="px-space-md py-1 rounded bg-surface-container text-on-surface">
-              <span class="text-outline text-xs">YAW / HDG: </span><b id="ahrs-yaw-val" class="text-tertiary">142°</b>
+              <span class="text-outline text-xs">ROLL: </span><b id="ahrs-roll-val" class="text-secondary">+0.0°</b>
+            </div>
+            <div class="px-space-md py-1 rounded bg-surface-container text-on-surface">
+              <span class="text-outline text-xs">YAW / HDG: </span><b id="ahrs-yaw-val" class="text-tertiary">0°</b>
             </div>
           </div>
         </div>
@@ -1474,7 +1509,7 @@
           <div>
             <div class="flex items-center gap-2">
               <span class="font-label-caps text-label-caps text-outline uppercase tracking-wider">SVAMITVA SCHEME GIS CADASTRE</span>
-              <span class="font-label-caps text-[10px] px-1.5 py-0.5 rounded bg-primary-container/20 text-primary font-bold">VILLAGE: RAMPUR KHAS (VARANASI)</span>
+              <span class="font-label-caps text-[10px] px-1.5 py-0.5 rounded bg-primary-container/20 text-primary font-bold">CAMPUS: SHAHEED SUKHDEV COLLEGE (ROHINI SECTOR 16)</span>
             </div>
             <h1 class="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight mt-0.5">Cadastral Land Mapping &amp; Survey Grid Planner</h1>
           </div>
@@ -1483,7 +1518,8 @@
             <!-- Location Quick Select -->
             <div class="flex items-center gap-1 px-2 py-1 rounded bg-surface-container-high border border-surface-container-highest">
               <span class="material-symbols-outlined text-xs text-primary">location_on</span>
-              <select id="map-location-jump-select" onchange="window.jumpToSurveyLocation(this.value)" class="bg-surface-container-high font-label-caps text-xs text-on-surface outline-none cursor-pointer">
+              <select id="map-location-jump-select" onchange="window.jumpToSurveyLocation(this.value)" class="bg-surface-container-high font-label-caps text-xs text-primary font-bold outline-none cursor-pointer">
+                <option value="sscbs" selected>📍 Shaheed Sukhdev College (Rohini)</option>
                 <option value="varanasi">📍 Rampur Khas (Varanasi)</option>
                 <option value="greater_noida">📍 Gr. Noida Drone Site</option>
                 <option value="ayodhya">📍 Ayodhya Survey Zone</option>
@@ -1525,8 +1561,16 @@
                       <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
                       <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
                     </span>
-                    <span class="font-mono text-[11px] font-bold text-secondary" id="map-live-gps-readout">GPS: 28.470211° N, 77.494297° E</span>
-                    <span class="font-label-caps text-[9px] text-primary font-bold px-1 py-0.5 rounded bg-primary/10" id="map-live-gps-fix">LIVE GPS</span>
+                    <span class="font-mono text-[11px] font-bold text-secondary" id="map-live-gps-readout">GPS: 28.732660° N, 77.119030° E</span>
+                    <span class="font-label-caps text-[9px] text-primary font-bold px-1 py-0.5 rounded bg-primary/10" id="map-live-gps-fix">SEARCHING</span>
+                  </div>
+
+                  <!-- Satellite Count & HDOP Chip in Map Header -->
+                  <div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-surface-container-high border border-primary/30 shadow text-[11px] font-mono">
+                    <span class="material-symbols-outlined text-xs text-primary animate-pulse">satellite_alt</span>
+                    <span id="map-sats-count" class="text-primary font-bold">0 SATS</span>
+                    <span class="text-outline-variant">|</span>
+                    <span id="map-hdop-readout" class="text-on-surface">HDOP: --</span>
                   </div>
 
                   <button id="btn-auto-follow-drone" onclick="window.toggleAutoFollowDrone()" class="px-2 py-0.5 rounded bg-secondary text-on-secondary text-[11px] font-label-caps font-bold flex items-center gap-1 cursor-pointer shadow" title="Keep map centered on moving drone">
@@ -1544,7 +1588,7 @@
               <div id="cadastre-leaflet-map" class="w-full h-[520px] rounded bg-surface-container-lowest overflow-hidden border border-surface-container-high/40 relative">
                 <!-- Cursor Coordinate HUD overlay -->
                 <div class="absolute bottom-2 right-2 z-[400] bg-surface-container-lowest/85 backdrop-blur-md px-2 py-1 rounded text-[11px] font-mono text-primary border border-primary/30 pointer-events-none shadow" id="map-cursor-coords">
-                  LAT: 28.615500° | LON: 77.210500° | ZOOM: 16
+                  LAT: 28.732660° | LON: 77.119030° | ZOOM: 17
                 </div>
               </div>
             </div>

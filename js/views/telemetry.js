@@ -187,6 +187,12 @@ window.onTelemetryTick = function(state) {
   const rtkText = document.getElementById('telem-rtk-sats');
   if (rtkText) rtkText.textContent = `${state.satellites} SATS (${state.gpsFix})`;
 
+  const hdopText = document.getElementById('telem-hdop-val');
+  if (hdopText) {
+    const hdopStr = (state.hdop && state.hdop > 0 && state.hdop < 90) ? Number(state.hdop).toFixed(2) : '--';
+    hdopText.textContent = `HDOP: ${hdopStr}`;
+  }
+
   if (window.onFCTick) {
     window.onFCTick(state);
   }

@@ -21,11 +21,11 @@ window.initOverviewMiniMap = function() {
   overviewMiniMap = L.map('overview-mini-map', {
     zoomControl: false,
     attributionControl: true
-  }).setView([28.4701886, 77.4941820], 16);
+  }).setView([28.73266, 77.11903], 16);
   window.overviewMiniMap = overviewMiniMap;
 
   // OpenStreetMap Tile Layer
-  ovOsmTiles = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  ovOsmTiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
   });
@@ -68,12 +68,12 @@ window.initOverviewMiniMap = function() {
     }
   };
 
-  // Cadastral polygon boundary preview
+  // Cadastral polygon boundary preview (SSCBS Campus, Sector 16 Rohini)
   L.polygon([
-    [28.4685, 77.4920],
-    [28.4720, 77.4925],
-    [28.4715, 77.4960],
-    [28.4680, 77.4955]
+    [28.7315, 77.1176],
+    [28.7338, 77.1176],
+    [28.7338, 77.1206],
+    [28.7315, 77.1206]
   ], {
     color: '#06b6d4',
     fillColor: '#06b6d4',
@@ -92,42 +92,57 @@ window.initOverviewMiniMap = function() {
     iconAnchor: [12, 12]
   });
 
-  overviewDroneMarker = L.marker([28.4701886, 77.4941820], { icon }).addTo(overviewMiniMap);
+  overviewDroneMarker = L.marker([28.73266, 77.11903], { icon }).addTo(overviewMiniMap);
   window.overviewDroneMarker = overviewDroneMarker;
+
+  if (window.updateCameraDeviceList) {
+    window.updateCameraDeviceList();
+  }
 };
 
-// Connect Real FPV 5.8GHz USB Receiver (UVC Webcam)
+// Live WebCam & FPV 5.8GHz Video Receiver Integration
 window.toggleRealFPVFeed = async function() {
   const videoEl = document.getElementById('fpv-live-video');
   const imgEl = document.getElementById('fpv-static-img');
   const btn = document.getElementById('btn-fpv-feed');
+  const streamBadge = document.getElementById('fpv-stream-badge');
+  const cameraSelect = document.getElementById('fpv-camera-select');
 
   if (fpvMediaStream) {
-    // Stop stream
+    // Stop live stream
     fpvMediaStream.getTracks().forEach(t => t.stop());
     fpvMediaStream = null;
-    if (videoEl) videoEl.classList.add('hidden');
+    if (videoEl) {
+      videoEl.srcObject = null;
+      videoEl.classList.add('hidden');
+    }
     if (imgEl) imgEl.classList.remove('hidden');
     if (btn) {
-      btn.innerHTML = `<span class="material-symbols-outlined text-xs">videocam</span> CONNECT FPV 5.8GHz USB`;
+      btn.innerHTML = `<span class="material-symbols-outlined text-xs">videocam</span> START WEBCAM FEED`;
+      btn.className = "px-2.5 py-1 rounded bg-secondary text-on-secondary font-label-caps text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow hover:brightness-110 active:scale-95 transition-all";
     }
-    window.showNotification("Switched off FPV UVC receiver stream");
+    if (streamBadge) {
+      streamBadge.textContent = "STANDBY";
+      streamBadge.className = "font-label-caps text-[9px] px-1.5 py-0.5 rounded bg-surface-container text-outline font-bold";
+    }
+    window.showNotification("Webcam video feed disconnected");
     return;
   }
 
   try {
-    window.showNotification("Accessing 5.8GHz UVC FPV Receiver...");
-    // Find video input devices
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const videoDevices = devices.filter(d => d.kind === 'videoinput');
-    
-    // Look for USB2.0 UVC WebCam / External receiver first
-    let selectedDeviceId = undefined;
-    const uvc = videoDevices.find(d => d.label.toLowerCase().includes('uvc') || d.label.toLowerCase().includes('usb'));
-    if (uvc) selectedDeviceId = uvc.deviceId;
+    window.showNotification("Accessing video webcam feed...");
+
+    // Enumerate connected video devices
+    await window.updateCameraDeviceList();
+
+    const selectedDeviceId = (cameraSelect && cameraSelect.value && cameraSelect.value !== 'default') 
+      ? cameraSelect.value 
+      : undefined;
 
     const constraints = {
-      video: selectedDeviceId ? { deviceId: { exact: selectedDeviceId } } : true,
+      video: selectedDeviceId 
+        ? { deviceId: { exact: selectedDeviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+        : { width: { ideal: 1920 }, height: { ideal: 1080 } },
       audio: false
     };
 
@@ -135,16 +150,94 @@ window.toggleRealFPVFeed = async function() {
     if (videoEl) {
       videoEl.srcObject = fpvMediaStream;
       videoEl.classList.remove('hidden');
-      videoEl.play();
+      videoEl.play().catch(e => console.warn("Video play error:", e));
     }
     if (imgEl) imgEl.classList.add('hidden');
     if (btn) {
-      btn.innerHTML = `<span class="material-symbols-outlined text-xs">videocam_off</span> DISCONNECT FPV`;
+      btn.innerHTML = `<span class="material-symbols-outlined text-xs">videocam_off</span> STOP FEED`;
+      btn.className = "px-2.5 py-1 rounded bg-error-container text-on-error-container font-label-caps text-[10px] font-bold flex items-center gap-1 cursor-pointer shadow hover:brightness-110 active:scale-95 transition-all";
     }
-    window.showNotification("FPV 5.8GHz Video Receiver connected live to HUD!");
+    if (streamBadge) {
+      streamBadge.textContent = "LIVE WEBCAM FEED";
+      streamBadge.className = "font-label-caps text-[9px] px-1.5 py-0.5 rounded bg-secondary/20 text-secondary font-bold";
+    }
+
+    // Refresh device list with permissions granted to show real camera names
+    await window.updateCameraDeviceList();
+
+    window.showNotification("WebCam connected live to FPV Cockpit HUD!");
   } catch (err) {
     console.error("Camera access error:", err);
-    window.showNotification("Could not access FPV USB receiver. Ensure camera permissions are granted.", true);
+    window.showNotification("Could not access camera. Please allow camera permissions in your browser.", true);
+  }
+};
+
+window.switchCameraDevice = async function(deviceId) {
+  if (!fpvMediaStream) {
+    window.toggleRealFPVFeed();
+    return;
+  }
+
+  // Stop current stream
+  fpvMediaStream.getTracks().forEach(t => t.stop());
+  fpvMediaStream = null;
+
+  const videoEl = document.getElementById('fpv-live-video');
+  const constraints = {
+    video: (deviceId && deviceId !== 'default') 
+      ? { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+      : { width: { ideal: 1920 }, height: { ideal: 1080 } },
+    audio: false
+  };
+
+  try {
+    fpvMediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+    if (videoEl) {
+      videoEl.srcObject = fpvMediaStream;
+      videoEl.play().catch(e => console.warn(e));
+    }
+    window.showNotification("Switched active video camera source");
+  } catch (err) {
+    console.error("Camera switch error:", err);
+    window.showNotification("Could not switch to selected video device", true);
+  }
+};
+
+window.toggleCameraMirror = function() {
+  const videoEl = document.getElementById('fpv-live-video');
+  if (!videoEl) return;
+  videoEl.classList.toggle('scale-x-[-1]');
+  window.showNotification("Webcam horizontal mirror toggled");
+};
+
+window.updateCameraDeviceList = async function() {
+  const select = document.getElementById('fpv-camera-select');
+  if (!select || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const videoDevices = devices.filter(d => d.kind === 'videoinput');
+
+    const currentVal = select.value;
+    select.innerHTML = '';
+
+    const defaultOpt = document.createElement('option');
+    defaultOpt.value = 'default';
+    defaultOpt.textContent = '📷 Primary WebCam';
+    select.appendChild(defaultOpt);
+
+    videoDevices.forEach((dev, idx) => {
+      const opt = document.createElement('option');
+      opt.value = dev.deviceId;
+      opt.textContent = `📷 ${dev.label || `Camera ${idx + 1}`}`;
+      select.appendChild(opt);
+    });
+
+    if (currentVal && select.querySelector(`option[value="${currentVal}"]`)) {
+      select.value = currentVal;
+    }
+  } catch (e) {
+    console.warn("enumerateDevices error", e);
   }
 };
 
